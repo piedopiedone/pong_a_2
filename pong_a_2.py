@@ -13,8 +13,8 @@ class GameBall:
         self.y = 43
         self.speed = [0,0]
 
-    def start(self):
-        self.speed = [1,1]
+    def start(self, speedX, speedY):
+        self.speed = [speedX, speedY]
 
     def addX(self, val):
         new_x = self.x + val
@@ -47,14 +47,14 @@ class GameBall:
         self.addY(self.speed[1])
 
     def setSpeedX(self, val):
-        if abs(val) < 3:
-            self.speed[0] = val
+        self.speed[0] = val
+
     def speedX(self):
         return self.speed[0]
 
     def setSpeedY(self, val):
-        if abs(val) < 3:
-            self.speed[1] = val
+        self.speed[1] = val
+
     def speedY(self):
         return self.speed[1]
 
@@ -79,7 +79,7 @@ def main(args):
 
     ball = GameBall('img/ball_base.png')
     ball.reset()
-    ball.start()
+    ball.start(3,3)
 
     quit = 0
 
