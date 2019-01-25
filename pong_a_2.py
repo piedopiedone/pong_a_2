@@ -8,9 +8,9 @@ class GameBall:
         self.bitmap = pygame.image.load(img)
         self.bitmap.set_colorkey((0,0,0))
 
-    def reset(self):
-        self.x = 11
-        self.y = 43
+    def reset(self, player):
+        self.x = 12
+        self.y = player.getY() + 15
         self.speed = [0,0]
 
     def start(self, speedX, speedY):
@@ -67,6 +67,35 @@ class GameBall:
         self.makeStep()
         screen.blit(self.bitmap, (self.x, self.y))
 
+class Paddle:
+    def __init__(self, xpos, ypos, img, pl_id):
+        self.x = xpos
+        self.y = ypos
+        self.oldy = ypos
+        self.bitmap = pygame.image.load(img)
+        self.bitmap.set_colorkey((0,0,0))
+        self.pl_id = pl_id
+
+    def getId(self):
+        return self.pl_id
+    def getX(self):
+        return self.x
+    def getY(self):
+        return self.y
+    def addY(self, val):
+        if (self.y + val) < 435 and (self.y + val) > 43:
+            self.oldy = self.y
+            self.y += val
+    def dirY(self):
+        return self.y -self.oldy
+    def diffPos(self, ball):
+        diff_posx = abs(ball.getX() - self.x)
+        diff_posy = ball.getY() - self.y
+        return (diff_posx, diff_posy)
+    def render(self, screen):
+        screen.blit(self.bitmap, (self.x, self.y))
+
+
 # -------------------------------------------------------
 # MAIN
 # -------------------------------------------------------
@@ -77,11 +106,13 @@ def main(args):
     pygame.display.set_caption("python pong")
     backdrop = pygame.image.load('img/pong_a_2.bmp')
 
-    ball = GameBall('img/ball_base.png')
-    ball.reset()
-    ball.start(3,3)
+    player1 = Paddle(0, 292, 'img/paddle_vert.png', 0)
 
+    ball = GameBall('img/ball_base.png')
+    ball.reset(player1)
+    
     quit = 0
+    gamestate = 0
 
     while quit == 0:
         screen.blit(backdrop, (0,0))
@@ -90,14 +121,42 @@ def main(args):
             if ourevent.type == pygame.QUIT:
                 quit = 1
             if ourevent.type == pygame.KEYDOWN:
+
+                if ourevent.key == pygame.K_z:
+                    player1.addY(5)
+                    if (gamestate == 0):
+                        if ball.getY() < 445:
+                            ball.addY(5)
+                
+                if ourevent.key == pygame.K_a:
+                    player1.addY(-5)
+                    if (gamestate == 0):
+                        if ball.getY() > 63:
+                            ball.addY(-5)
+                
+                if ourevent.key == pygame.K_s:
+                    if (gamestate == 0):
+                        ball.start(3, 3)
+                        gamestate = 1
+                
                 if ourevent.key == pygame.K_ESCAPE:
                     quit = 1
 
-        if ball.getX() <= 1:
-            ball.setSpeedX(-ball.speedX())
+        if ball.getX() <= 9:
+            diff_pl1_x, diff_pl1_y = player1.diffPos(ball)
+            if diff_pl1_x < 10 and (diff_pl1_y < 40 and diff_pl1_y > -10):
+                ball.setSpeedX(-ball.speedX())
+                if (ball.speedY() * player1.dirY()) < 0:
+                    ball.setSpeedY(-ball.speedY())
+            else:
+                # palla persa da player1
+                gamestate = 0
+                ball.reset(player1)
+
         if ball.getX() >= 629:
             ball.setSpeedX(-ball.speedX())
         
+        player1.render(screen)
         ball.render(screen)
         pygame.display.update()
         pygame.time.delay(2)
