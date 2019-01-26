@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import pygame
+import math
 
 class GameBall:
     def __init__(self,img):
         self.speed = [0,0]
+        self.gamenum = 0
         self.bitmap = pygame.image.load(img)
         self.bitmap.set_colorkey((0,0,0))
 
     def reset(self, player):
-        self.x = 12
+        if player.getX() < 320:
+            self.x = 12
+        else:
+            self.x = 618
         self.y = player.getY() + 15
         self.speed = [0,0]
 
@@ -42,6 +47,9 @@ class GameBall:
                 self.y = 466 - diff
             self.setSpeedY(-self.speedY())
 
+    def increaseGameNum(self):
+        self.gamenum += 1
+
     def makeStep(self):
         self.addX(self.speed[0])
         self.addY(self.speed[1])
@@ -66,6 +74,15 @@ class GameBall:
     def render(self, screen):
         self.makeStep()
         screen.blit(self.bitmap, (self.x, self.y))
+
+    def getServicePl1(self):
+        if self.gamenum == 0:
+            return True
+        else:
+            if math.ceil((self.gamenum + 1) / 2) % 2:
+                return False
+            else:
+                return True
 
 class Paddle:
     def __init__(self, xpos, ypos, img, pl_id):
@@ -95,6 +112,42 @@ class Paddle:
     def render(self, screen):
         screen.blit(self.bitmap, (self.x, self.y))
 
+class Score:
+    def __init__(self, goal):
+        self.pnt = [0, 0]
+        self.goal = goal
+        self.font = pygame.font.Font('img/slkscr.ttf', 20)
+
+    def displayScore(self, screen):
+        textscore = str(' - ').join([str(s) for s  in self.pnt])
+        score_text = self.font.render(textscore, True, (255, 255, 255))
+        score_rect = score_text.get_rect()
+        score_rect.centerx = 320
+        score_rect.y = 5
+        screen.blit(score_text, score_rect)
+        pygame.display.update(score_rect)
+    
+    def setScore(self, player):
+        return_state = 0
+        self.pnt[player.getId()] += 1
+        if self.pnt[player.getId()] >= self.goal:
+            return_state = 2
+        return return_state
+
+    def displayWinner(self, screen):
+        text_win = ""
+        if self.pnt[0] == self.goal:
+            text_win = 'vince la partita  Player 1'
+        elif self.pnt[1] == self.goal:
+            text_win = 'vince la partita Player 2'
+
+        if text_win != '':
+            winner_text = self.font.render(text_win, True, (255, 255, 255))
+            winner_rect = winner_text.get_rect()
+            winner_rect.centerx = 320
+            winner_rect.y = 200
+            screen.blit(winner_text, winner_rect)
+            pygame.display.update(winner_rect)
 
 # -------------------------------------------------------
 # MAIN
@@ -107,9 +160,12 @@ def main(args):
     backdrop = pygame.image.load('img/pong_a_2.bmp')
 
     player1 = Paddle(0, 292, 'img/paddle_vert.png', 0)
+    player2 = Paddle(628, 292, 'img/paddle_vert.png', 1)
 
     ball = GameBall('img/ball_base.png')
     ball.reset(player1)
+    score = Score(2)
+    score.displayScore(screen)
     
     quit = 0
     gamestate = 0
@@ -122,20 +178,39 @@ def main(args):
                 quit = 1
             if ourevent.type == pygame.KEYDOWN:
 
-                if ourevent.key == pygame.K_z:
+                # Player 1 controls
+                if ourevent.key == pygame.K_z and gamestate < 2:
                     player1.addY(5)
-                    if (gamestate == 0):
+                    if gamestate == 0 and ball.getServicePl1():
                         if ball.getY() < 445:
                             ball.addY(5)
                 
-                if ourevent.key == pygame.K_a:
+                if ourevent.key == pygame.K_a and gamestate < 2:
                     player1.addY(-5)
-                    if (gamestate == 0):
+                    if gamestate == 0 and ball.getServicePl1():
                         if ball.getY() > 63:
                             ball.addY(-5)
                 
-                if ourevent.key == pygame.K_s:
-                    if (gamestate == 0):
+                if ourevent.key == pygame.K_s and gamestate < 2:
+                    if gamestate == 0 and ball.getServicePl1():
+                        ball.start(3, 3)
+                        gamestate = 1
+                
+                # Player 2 controls
+                if ourevent.key == pygame.K_l and gamestate < 2:
+                    player2.addY(5)
+                    if gamestate == 0 and not ball.getServicePl1():
+                        if ball.getY() < 445:
+                            ball.addY(5)
+                
+                if ourevent.key == pygame.K_p and gamestate < 2:
+                    player2.addY(-5)
+                    if gamestate == 0 and not ball.getServicePl1():
+                        if ball.getY() > 63:
+                            ball.addY(-5)
+                
+                if ourevent.key == pygame.K_o and gamestate < 2:
+                    if gamestate == 0 and not ball.getServicePl1():
                         ball.start(3, 3)
                         gamestate = 1
                 
@@ -150,14 +225,45 @@ def main(args):
                     ball.setSpeedY(-ball.speedY())
             else:
                 # palla persa da player1
-                gamestate = 0
-                ball.reset(player1)
+                ball.increaseGameNum()
+                gamestate = score.setScore(player2)
+                if gamestate < 2:
+                    pygame.time.delay(500)
+                    if ball.getServicePl1():
+                        ball.reset(player1)
+                    else:
+                        ball.reset(player2)
+                else:
+                    ball.reset(player2)
+        elif ball.getX() >= 619:
+            diff_pl2_x, diff_pl2_y = player2.diffPos(ball)
+            if diff_pl2_x < 10 and (diff_pl2_y < 40 and diff_pl2_y > -10):
+                ball.setSpeedX(-ball.speedX())
+                if (ball.speedY() * player2.dirY()) < 0:
+                    ball.setSpeedY(-ball.speedY())
+            else:
+                # palla persa da player2
+                ball.increaseGameNum()
+                gamestate = score.setScore(player1)
+                if gamestate < 2:
+                    pygame.time.delay(500)
+                    if ball.getServicePl1():
+                        ball.reset(player1)
+                    else:
+                        ball.reset(player2)
+                else:
+                    ball.reset(player1)
 
         if ball.getX() >= 629:
             ball.setSpeedX(-ball.speedX())
         
         player1.render(screen)
+        player2.render(screen)
         ball.render(screen)
+        score.displayScore(screen)
+        if gamestate == 2:
+            winplayer = score.displayWinner(screen)
+
         pygame.display.update()
         pygame.time.delay(2)
 
